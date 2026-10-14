@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
+    // Condominios
+    match /condominios/{condominioId} {
+      allow read, write: if true;
+    }
+
+    // Proprietarios
+    match /proprietarios/{proprietarioId} {
+      allow read, write: if true;
+    }
+
+    // Sindicos
+    match /sindicos/{sindicoId} {
+      allow read, write: if true;
+    }
+
+    // Parametros
+    match /parametros/{parametroId} {
+      allow read, write: if true;
+    }
+
+    // Valores Mensais
+    match /valoresMensais/{valorMensalId} {
+      allow read, write: if true;
+    }
+
+    // Chamadas Extras
+    match /chamadasExtras/{chamadaExtraId} {
+      allow read, write: if true;
+    }
+
+    // Valores Individuais
+    match /valoresIndividuais/{valorIndividualId} {
+      allow read, write: if true;
+    }
+
+    // Faturas
+    match /faturas/{faturaId} {
+      allow read, write: if true;
+    }
+
+    // Despesas
+    match /despesas/{despesaId} {
+      allow read, write: if true;
+    }
+
+    // Creditos Extras
+    match /creditosExtras/{creditoExtraId} {
+      allow read, write: if true;
+    }
+
+    // Agendas de Servico
+    match /agendasServico/{agendaId} {
+      allow read, write: if true;
+    }
+
+    // Configuracoes
+    match /configuracoes/{configId} {
+      allow read, write: if true;
+    }
+  }
+}

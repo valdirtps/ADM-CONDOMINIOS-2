@@ -1,0 +1,278 @@
+{
+  "entities": {
+    "user": {
+      "title": "User",
+      "description": "Usuário do sistema ou administrador de condomínio",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nome": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "senha": { "type": "string" },
+        "role": { "type": "string", "enum": ["ADMIN_SISTEMA", "ADMIN_CONDOMINIO", "USUARIO"] },
+        "condominioId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "nome", "email", "role"]
+    },
+    "condominio": {
+      "title": "Condominio",
+      "description": "Dados cadastrais do condomínio",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nome": { "type": "string" },
+        "cnpj": { "type": "string" },
+        "endereco": { "type": "string" },
+        "numero": { "type": "string" },
+        "cidade": { "type": "string" },
+        "uf": { "type": "string" },
+        "cep": { "type": "string" },
+        "saldo_inicial": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "nome", "cnpj"]
+    },
+    "proprietario": {
+      "title": "Proprietario",
+      "description": "Proprietário ou morador de unidade do condomínio",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nome": { "type": "string" },
+        "apartamento": { "type": "string" },
+        "telefone": { "type": "string" },
+        "email": { "type": "string" },
+        "saldo_devedor_inicial": { "type": "number" },
+        "ativo": { "type": "boolean" },
+        "condominioId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "nome", "apartamento", "condominioId"]
+    },
+    "sindico": {
+      "title": "Sindico",
+      "description": "Registro de mandato de síndico do condomínio",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "proprietarioId": { "type": "string" },
+        "empresa_nome": { "type": "string" },
+        "data_inicio": { "type": "string" },
+        "data_fim": { "type": "string" },
+        "paga_condominio": { "type": "boolean" },
+        "paga_chamada_extra": { "type": "boolean" },
+        "ativo": { "type": "boolean" },
+        "email_pessoal": { "type": "string" },
+        "codigo_verificacao": { "type": "string" },
+        "condominioId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "condominioId", "data_inicio"]
+    },
+    "parametros": {
+      "title": "Parametros",
+      "description": "Configurações mensais de vencimento e multas",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "mes_ano": { "type": "string" },
+        "dia_vencimento": { "type": "number" },
+        "dias_isencao_multa": { "type": "number" },
+        "multa_percentual": { "type": "number" },
+        "dividir_rateio_menos_um": { "type": "boolean" },
+        "condominioId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "condominioId", "mes_ano", "dia_vencimento"]
+    },
+    "valoresMensais": {
+      "title": "ValoresMensais",
+      "description": "Lançamento mensal de água, luz, fundo de reserva e taxa",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "mes_ano": { "type": "string" },
+        "valor_agua": { "type": "number" },
+        "valor_luz": { "type": "number" },
+        "fundo_reserva": { "type": "number" },
+        "taxa_condominio": { "type": "number" },
+        "observacao": { "type": "string" },
+        "condominioId": { "type": "string" },
+        "sindicoId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "condominioId", "mes_ano"]
+    },
+    "chamadaExtra": {
+      "title": "ChamadaExtra",
+      "description": "Chamada extra de obras ou melhorias",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "mes_ano": { "type": "string" },
+        "valor": { "type": "number" },
+        "valor_total": { "type": "number" },
+        "parcelas": { "type": "number" },
+        "referente": { "type": "string" },
+        "isenta_sindico": { "type": "boolean" },
+        "condominioId": { "type": "string" },
+        "sindicoId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "condominioId", "mes_ano", "valor"]
+    },
+    "valoresIndividuais": {
+      "title": "ValoresIndividuais",
+      "description": "Cobranças ou créditos individuais por apartamento",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "mes_ano": { "type": "string" },
+        "valor": { "type": "number" },
+        "descricao": { "type": "string" },
+        "proprietarioId": { "type": "string" },
+        "condominioId": { "type": "string" },
+        "sindicoId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "condominioId", "proprietarioId", "valor", "descricao"]
+    },
+    "fatura": {
+      "title": "Fatura",
+      "description": "Fatura mensal de cobrança do condomínio",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "mes_ano": { "type": "string" },
+        "proprietarioId": { "type": "string" },
+        "valor_total": { "type": "number" },
+        "data_vencimento": { "type": "string" },
+        "data_pagamento": { "type": "string" },
+        "valor_pago": { "type": "number" },
+        "dias_atraso": { "type": "number" },
+        "multa": { "type": "number" },
+        "juros": { "type": "number" },
+        "status": { "type": "string" },
+        "detalhes": { "type": "string" },
+        "condominioId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "condominioId", "proprietarioId", "mes_ano", "valor_total", "data_vencimento"]
+    },
+    "despesa": {
+      "title": "Despesa",
+      "description": "Despesas pagas pelo condomínio",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tipo": { "type": "string" },
+        "valor": { "type": "number" },
+        "referente": { "type": "string" },
+        "observacao": { "type": "string" },
+        "data_pagamento": { "type": "string" },
+        "data_lancamento": { "type": "string" },
+        "condominioId": { "type": "string" },
+        "sindicoId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "condominioId", "tipo", "valor", "data_pagamento"]
+    },
+    "creditoExtra": {
+      "title": "CreditoExtra",
+      "description": "Créditos ou receitas extras recebidas",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "mes_ano": { "type": "string" },
+        "valor": { "type": "number" },
+        "referente": { "type": "string" },
+        "data_pagamento": { "type": "string" },
+        "data_lancamento": { "type": "string" },
+        "data_vencimento": { "type": "string" },
+        "condominioId": { "type": "string" },
+        "sindicoId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "condominioId", "valor", "referente"]
+    },
+    "agendaServico": {
+      "title": "AgendaServico",
+      "description": "Compromissos e manutenções agendadas",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "titulo": { "type": "string" },
+        "descricao": { "type": "string" },
+        "data_agendamento": { "type": "string" },
+        "status": { "type": "string" },
+        "notificacao_enviada": { "type": "boolean" },
+        "condominioId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "condominioId", "titulo", "data_agendamento"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "user",
+      "description": "Coleção de contas de usuários do sistema"
+    },
+    "/condominios/{condominioId}": {
+      "schema": "condominio",
+      "description": "Coleção de condomínios cadastrados"
+    },
+    "/proprietarios/{proprietarioId}": {
+      "schema": "proprietario",
+      "description": "Coleção de proprietários por condomínio"
+    },
+    "/sindicos/{sindicoId}": {
+      "schema": "sindico",
+      "description": "Histórico e mandatos de síndicos"
+    },
+    "/parametros/{parametroId}": {
+      "schema": "parametros",
+      "description": "Parâmetros mensais de juros e vencimento"
+    },
+    "/valoresMensais/{valorMensalId}": {
+      "schema": "valoresMensais",
+      "description": "Valores mensais de despesas comuns por mês"
+    },
+    "/chamadasExtras/{chamadaExtraId}": {
+      "schema": "chamadaExtra",
+      "description": "Chamadas extras e parcelas de obras"
+    },
+    "/valoresIndividuais/{valorIndividualId}": {
+      "schema": "valoresIndividuais",
+      "description": "Cobranças ou ressarcimentos individuais"
+    },
+    "/faturas/{faturaId}": {
+      "schema": "fatura",
+      "description": "Boletos e faturas emitidas para os condôminos"
+    },
+    "/despesas/{despesaId}": {
+      "schema": "despesa",
+      "description": "Despesas e pagamentos efetuados pelo condomínio"
+    },
+    "/creditosExtras/{creditoExtraId}": {
+      "schema": "creditoExtra",
+      "description": "Receitas e créditos extras arrecadados"
+    },
+    "/agendasServico/{agendaId}": {
+      "schema": "agendaServico",
+      "description": "Agendamentos de serviços e manutenções prediais"
+    }
+  }
+}

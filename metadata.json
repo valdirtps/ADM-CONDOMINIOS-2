@@ -1,0 +1,8 @@
+{
+  "name": "Remix ADM CONDOMINIOS",
+  "description": "SISTEMA WEB DE GESTÃO DE CONDOMÍNIOS (COMPLETO)",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

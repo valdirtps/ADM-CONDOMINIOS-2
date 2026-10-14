@@ -1,0 +1,224 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id           String      @id @default(cuid())
+  nome         String
+  email        String      @unique
+  senha        String
+  role         String      // ADMIN_SISTEMA, ADMIN_CONDOMINIO, USUARIO
+  condominioId String?
+  condominio   Condominio? @relation(fields: [condominioId], references: [id])
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model Condominio {
+  id                 String               @id @default(cuid())
+  nome               String
+  cnpj               String
+  endereco           String
+  numero             String?
+  cidade             String
+  uf                 String
+  cep                String
+  saldo_inicial      Float                @default(0)
+  usuarios           User[]
+  proprietarios      Proprietario[]
+  sindicos           Sindico[]
+  parametros         Parametros[]
+  valoresMensais     ValoresMensais[]
+  chamadasExtras     ChamadaExtra[]
+  valoresIndividuais ValoresIndividuais[]
+  faturas            Fatura[]
+  despesas           Despesa[]
+  creditosExtras     CreditoExtra[]
+  agendasServico     AgendaServico[]
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+}
+
+// ... other models ...
+
+model AgendaServico {
+  id                  String     @id @default(cuid())
+  titulo              String
+  descricao           String?
+  data_agendamento    DateTime
+  status              String     @default("AGENDADO") // AGENDADO, CONCLUIDO, CANCELADO
+  notificacao_enviada Boolean    @default(false)
+  condominioId        String
+  condominio          Condominio @relation(fields: [condominioId], references: [id])
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+}
+
+model Proprietario {
+  id                    String               @id @default(cuid())
+  nome                  String
+  apartamento           String
+  telefone              String?
+  email                 String?
+  saldo_devedor_inicial Float                @default(0)
+  ativo                 Boolean              @default(true)
+  condominioId          String
+  condominio            Condominio           @relation(fields: [condominioId], references: [id])
+  sindicos              Sindico[]
+  valoresIndividuais    ValoresIndividuais[]
+  faturas               Fatura[]
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+}
+
+model Sindico {
+  id                 String        @id @default(cuid())
+  proprietarioId     String?
+  proprietario       Proprietario? @relation(fields: [proprietarioId], references: [id])
+  empresa_nome       String?
+  data_inicio        DateTime
+  data_fim           DateTime?
+  paga_condominio    Boolean       @default(true)
+  paga_chamada_extra Boolean       @default(true)
+  ativo              Boolean       @default(true)
+  email_pessoal      String?
+  codigo_verificacao String?
+  condominioId       String
+  condominio         Condominio    @relation(fields: [condominioId], references: [id])
+  valoresMensais     ValoresMensais[]
+  chamadasExtras     ChamadaExtra[]
+  valoresIndividuais ValoresIndividuais[]
+  despesas           Despesa[]
+  creditosExtras     CreditoExtra[]
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+}
+
+model Parametros {
+  id                 String     @id @default(cuid())
+  mes_ano            String     // Format: YYYY-MM
+  dia_vencimento     Int
+  dias_isencao_multa Int
+  multa_percentual   Float      @default(2.0) // % de multa
+  dividir_rateio_menos_um Boolean @default(false)
+  condominioId       String
+  condominio         Condominio @relation(fields: [condominioId], references: [id])
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  @@unique([condominioId, mes_ano])
+}
+
+model ValoresMensais {
+  id              String     @id @default(cuid())
+  mes_ano         String // Format: YYYY-MM
+  valor_agua      Float
+  valor_luz       Float
+  fundo_reserva   Float
+  taxa_condominio Float
+  observacao      String?
+  condominioId    String
+  condominio      Condominio @relation(fields: [condominioId], references: [id])
+  sindicoId       String?
+  sindico         Sindico?   @relation(fields: [sindicoId], references: [id])
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@unique([mes_ano, condominioId])
+}
+
+model ChamadaExtra {
+  id             String     @id @default(cuid())
+  mes_ano        String // Format: YYYY-MM
+  valor          Float
+  valor_total    Float?
+  parcelas       Int?
+  referente      String?
+  isenta_sindico Boolean    @default(false)
+  condominioId   String
+  condominio     Condominio @relation(fields: [condominioId], references: [id])
+  sindicoId      String?
+  sindico        Sindico?   @relation(fields: [sindicoId], references: [id])
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}
+
+model ValoresIndividuais {
+  id             String       @id @default(cuid())
+  mes_ano        String // Format: YYYY-MM
+  valor          Float
+  descricao      String
+  proprietarioId String
+  proprietario   Proprietario @relation(fields: [proprietarioId], references: [id])
+  condominioId   String
+  condominio     Condominio   @relation(fields: [condominioId], references: [id])
+  sindicoId      String?
+  sindico        Sindico?     @relation(fields: [sindicoId], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Fatura {
+  id             String       @id @default(cuid())
+  mes_ano        String // Format: YYYY-MM
+  proprietarioId String
+  proprietario   Proprietario @relation(fields: [proprietarioId], references: [id])
+  valor_total    Float
+  data_vencimento DateTime
+  data_pagamento DateTime?
+  valor_pago     Float?
+  dias_atraso    Int          @default(0)
+  multa          Float        @default(0)
+  juros          Float        @default(0)
+  status         String       @default("PENDENTE") // PENDENTE, PAGO, ATRASADO
+  detalhes       String // JSON string with breakdown
+  condominioId   String
+  condominio     Condominio   @relation(fields: [condominioId], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([mes_ano, proprietarioId])
+}
+
+model Despesa {
+  id              String     @id @default(cuid())
+  tipo            String
+  valor           Float
+  referente       String
+  observacao      String?
+  data_pagamento  DateTime
+  data_lancamento DateTime   @default(now())
+  condominioId    String
+  condominio      Condominio @relation(fields: [condominioId], references: [id])
+  sindicoId       String?
+  sindico         Sindico?   @relation(fields: [sindicoId], references: [id])
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
+
+model CreditoExtra {
+  id              String     @id @default(cuid())
+  mes_ano         String?    // Format: YYYY-MM
+  valor           Float
+  referente       String
+  data_pagamento  DateTime?
+  data_lancamento DateTime   @default(now())
+  data_vencimento DateTime?
+  condominioId    String
+  condominio      Condominio @relation(fields: [condominioId], references: [id])
+  sindicoId       String?
+  sindico         Sindico?   @relation(fields: [sindicoId], references: [id])
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
