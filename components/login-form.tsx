@@ -118,20 +118,8 @@ export function LoginForm() {
           </div>
 
           <div className="bg-muted/50 p-3 rounded-lg border text-xs space-y-2">
-            <div className="font-semibold text-muted-foreground uppercase text-[10px] tracking-wider">Acesso Rápido de Teste:</div>
+            <div className="font-semibold text-muted-foreground uppercase text-[10px] tracking-wider">Acesso Rápido:</div>
             <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="text-xs h-7"
-                onClick={() => {
-                  setEmail('valdirtps@gmail.com');
-                  setPassword('admin123');
-                }}
-              >
-                Preencher Administrador (Valdir)
-              </Button>
               <Button
                 type="button"
                 variant="outline"

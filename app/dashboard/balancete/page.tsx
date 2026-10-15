@@ -8,7 +8,7 @@ import { getActiveChamadasExtras } from '@/lib/chamadas-extras';
 
 export default async function BalancetePage({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const session = await getSession();
-  if (!session || !session.user.condominioId) {
+  if (!session) {
     redirect('/login');
   }
 
@@ -19,6 +19,25 @@ export default async function BalancetePage({ searchParams }: { searchParams: Pr
     return <div>Mês/Ano não informado. <Link href="/dashboard" className="text-blue-600 underline">Voltar</Link></div>;
   }
 
+  let condominioId = session.user.condominioId;
+  const spCondo = typeof sp.condominioId === 'string' ? sp.condominioId : (typeof sp.condominio_id === 'string' ? sp.condominio_id : undefined);
+  if (spCondo) {
+    condominioId = spCondo;
+  }
+  if (!condominioId) {
+    try {
+      const { listDocuments } = await import('@/lib/firestore-service');
+      const condos = await listDocuments<any>('condominios');
+      if (condos && condos.length > 0) {
+        condominioId = condos[0].id;
+      }
+    } catch {}
+  }
+
+  if (!condominioId) {
+    return <div>Condomínio não vinculado. <Link href="/dashboard" className="text-blue-600 underline">Voltar</Link></div>;
+  }
+
   const [year, month] = mesAno.split('-');
 
   let condominio: any = null;
@@ -26,7 +45,7 @@ export default async function BalancetePage({ searchParams }: { searchParams: Pr
   // 1. Try Firebase Firestore
   try {
     const { getDocument, listDocuments } = await import('@/lib/firestore-service');
-    const condoDoc = await getDocument<any>('condominios', session.user.condominioId);
+    const condoDoc = await getDocument<any>('condominios', condominioId);
     if (condoDoc) {
       const [despesas, creditosExtras, chamadasExtras, sindicos, faturas, parametros, proprietarios] = await Promise.all([
         listDocuments<any>('despesas'),
@@ -102,8 +121,28 @@ export default async function BalancetePage({ searchParams }: { searchParams: Pr
     return dataFim >= today;
   }) || condominio.sindicos[0];
 
-  const getVencimentoForCycle = (referente: string | null, data_pagamento: Date) => {
-    let dataCalc = data_pagamento || new Date();
+  const safeDate = (dateVal: any): Date => {
+    if (!dateVal) return new Date();
+    if (dateVal instanceof Date) {
+      return isNaN(dateVal.getTime()) ? new Date() : dateVal;
+    }
+    const d = new Date(dateVal);
+    return isNaN(d.getTime()) ? new Date() : d;
+  };
+
+  const safeFormatDate = (val: any, formatPattern: string, fallback = '-'): string => {
+    if (!val) return fallback;
+    try {
+      const d = val instanceof Date ? val : new Date(val);
+      if (isNaN(d.getTime())) return fallback;
+      return format(d, formatPattern);
+    } catch {
+      return fallback;
+    }
+  };
+
+  const getVencimentoForCycle = (referente: string | null, data_pagamento: any) => {
+    let dataCalc = safeDate(data_pagamento);
     if (referente && referente.match(/^\d{4}-\d{2}$/)) {
       const [y, m] = referente.split('-').map(Number);
       dataCalc = new Date(Date.UTC(y, m - 1, 15, 12, 0, 0));
@@ -113,33 +152,33 @@ export default async function BalancetePage({ searchParams }: { searchParams: Pr
     let nextYear = dataCalc.getUTCFullYear();
     
     const mesAnoStr = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}`;
-    const param = condominio.parametros.find(p => p.mes_ano <= mesAnoStr) || condominio.parametros[0];
-    const diaVencimento = param ? param.dia_vencimento : 10;
+    const param = (condominio.parametros || []).find((p: any) => p.mes_ano <= mesAnoStr) || condominio.parametros?.[0];
+    const diaVencimento = param ? (Number(param.dia_vencimento) || 10) : 10;
 
     return new Date(Date.UTC(nextYear, nextMonth, diaVencimento, 12, 0, 0));
   };
 
   const allTransactions = [
-    ...condominio.despesas.map(d => ({
+    ...(condominio.despesas || []).map((d: any) => ({
       type: 'despesa',
       data: getVencimentoForCycle(d.referente, d.data_pagamento),
       entrada: 0,
-      saida: d.valor,
+      saida: Number(d.valor) || 0,
       desc: d.tipo, // Detalhamento da despesa
       raw: d
     })),
-    ...condominio.creditosExtras.map(c => ({
+    ...(condominio.creditosExtras || []).map((c: any) => ({
       type: 'credito',
-      data: c.data_vencimento || getVencimentoForCycle(c.mes_ano || c.referente, c.data_pagamento || c.data_lancamento),
-      entrada: c.valor,
+      data: c.data_vencimento ? safeDate(c.data_vencimento) : getVencimentoForCycle(c.mes_ano || c.referente, c.data_pagamento || c.data_lancamento),
+      entrada: Number(c.valor) || 0,
       saida: 0,
       desc: c.referente,
       raw: c
     })),
-    ...condominio.faturas.filter(f => f.status === 'PAGO' || f.status === 'PARCIAL').map(f => ({
+    ...(condominio.faturas || []).filter((f: any) => f.status === 'PAGO' || f.status === 'PARCIAL').map((f: any) => ({
       type: 'fatura',
-      data: f.data_vencimento, // use data de vencimento to align with competência
-      entrada: f.valor_pago || f.valor_total,
+      data: safeDate(f.data_vencimento), // use data de vencimento to align with competência
+      entrada: Number(f.valor_pago || f.valor_total) || 0,
       saida: 0,
       desc: `Apto ${f.proprietario?.apartamento || ''}`,
       raw: f
@@ -186,10 +225,11 @@ export default async function BalancetePage({ searchParams }: { searchParams: Pr
   }
   const nextMesAno = `${nextModYear}-${String(nextModMonth).padStart(2, '0')}`;
   
-  const faturasEmAtraso = condominio.faturas.filter(f => {
+  const faturasEmAtraso = (condominio.faturas || []).filter((f: any) => {
     if (f.status === 'PENDENTE' || f.status === 'ATRASADO') {
-      const fYear = f.data_vencimento.getUTCFullYear();
-      const fMonth = f.data_vencimento.getUTCMonth() + 1;
+      const fDate = safeDate(f.data_vencimento);
+      const fYear = fDate.getUTCFullYear();
+      const fMonth = fDate.getUTCMonth() + 1;
       const fMesAno = `${fYear}-${String(fMonth).padStart(2, '0')}`;
       return fMesAno === mesAno || fMesAno < mesAno;
     }
@@ -239,10 +279,10 @@ export default async function BalancetePage({ searchParams }: { searchParams: Pr
              {faturasEmAtraso.length === 0 ? (
                <p className="text-sm text-center text-gray-500">Nenhuma fatura em atraso.</p>
              ) : (
-               faturasEmAtraso.map((f, i) => (
+               faturasEmAtraso.map((f: any, i: number) => (
                  <div key={i} className="flex justify-between text-sm">
-                   <span>Apto {f.proprietario?.apartamento} ({format(f.data_vencimento, 'dd/MM')})</span>
-                   <span className="text-red-600 font-medium">{currencyFormatter.format(f.valor_total)}</span>
+                   <span>Apto {f.proprietario?.apartamento} ({safeFormatDate(f.data_vencimento, 'dd/MM')})</span>
+                   <span className="text-red-600 font-medium">{currencyFormatter.format(Number(f.valor_total) || 0)}</span>
                  </div>
                ))
              )}
@@ -267,14 +307,14 @@ export default async function BalancetePage({ searchParams }: { searchParams: Pr
                   </tr>
                 </thead>
                 <tbody>
-                  {faturasPagas.map((f, i) => {
+                  {faturasPagas.map((f: any, i: number) => {
                     const raw = f.raw as any;
-                    const multa = (raw.multa || 0) + (raw.juros || 0);
+                    const multa = (Number(raw.multa) || 0) + (Number(raw.juros) || 0);
                     return (
                       <tr key={i} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                         <td className="py-1 px-2">{f.desc}</td>
-                        <td className="py-1 px-2 text-center text-gray-600">{format(raw.data_vencimento, 'dd/MM/yyyy')}</td>
-                        <td className="py-1 px-2 text-center">{raw.data_pagamento ? format(raw.data_pagamento, 'dd/MM/yyyy') : '-'}</td>
+                        <td className="py-1 px-2 text-center text-gray-600">{safeFormatDate(raw.data_vencimento, 'dd/MM/yyyy')}</td>
+                        <td className="py-1 px-2 text-center">{safeFormatDate(raw.data_pagamento, 'dd/MM/yyyy')}</td>
                         <td className="py-1 px-2 text-right text-red-600">{multa > 0 ? currencyFormatter.format(multa) : '-'}</td>
                         <td className="py-1 px-2 text-right font-medium text-green-700">{currencyFormatter.format(f.entrada)}</td>
                       </tr>
@@ -302,7 +342,7 @@ export default async function BalancetePage({ searchParams }: { searchParams: Pr
                     return (
                       <tr key={i} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                         <td className="py-1 px-2">{c.desc}</td>
-                        <td className="py-1 px-2 text-center text-gray-600">{raw.data_pagamento ? format(raw.data_pagamento, 'dd/MM/yyyy') : '-'}</td>
+                        <td className="py-1 px-2 text-center text-gray-600">{safeFormatDate(raw.data_pagamento, 'dd/MM/yyyy')}</td>
                         <td className="py-1 px-2 text-right font-medium text-green-700">{currencyFormatter.format(c.entrada)}</td>
                       </tr>
                     );
@@ -330,7 +370,7 @@ export default async function BalancetePage({ searchParams }: { searchParams: Pr
                   </tr>
                 </thead>
                 <tbody>
-                  {activeChamadasExtras.map((ce, i) => (
+                  {activeChamadasExtras.map((ce: any, i: number) => (
                     <tr key={i} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                       <td className="py-1 px-2">{ce.referente || 'Chamada Extra'}</td>
                       <td className="py-1 px-2 text-center text-gray-600">{ce.current_parcela} / {ce.parcelas}</td>
@@ -359,13 +399,13 @@ export default async function BalancetePage({ searchParams }: { searchParams: Pr
                 </tr>
               </thead>
               <tbody>
-                {despesasDoMes.map((d, i) => {
+                {despesasDoMes.map((d: any, i: number) => {
                   const raw = d.raw as any;
                   return (
                     <tr key={i} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                       <td className="py-1 px-2">{d.desc}</td>
                       <td className="py-1 px-2 text-gray-600">{raw.observacao || '-'}</td>
-                      <td className="py-1 px-2 text-center text-gray-600">{format(raw.data_pagamento, 'dd/MM/yyyy')}</td>
+                      <td className="py-1 px-2 text-center text-gray-600">{safeFormatDate(raw.data_pagamento, 'dd/MM/yyyy')}</td>
                       <td className="py-1 px-2 text-right font-medium text-red-700">{currencyFormatter.format(d.saida)}</td>
                     </tr>
                   );

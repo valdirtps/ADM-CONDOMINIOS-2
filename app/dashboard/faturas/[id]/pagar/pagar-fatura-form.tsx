@@ -12,7 +12,7 @@ import { format } from 'date-fns';
 export function PagarFaturaForm({ fatura }: { fatura: any }) {
   const [formData, setFormData] = useState({
     data_pagamento: format(new Date(), 'yyyy-MM-dd'),
-    valor_pago: fatura.valor_total,
+    valor_pago: fatura.valor_total ?? 0,
   });
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -26,8 +26,8 @@ export function PagarFaturaForm({ fatura }: { fatura: any }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          data_pagamento: new Date(formData.data_pagamento).toISOString(),
-          valor_pago: formData.valor_pago,
+          data_pagamento: formData.data_pagamento,
+          valor_pago: Number(formData.valor_pago),
         }),
       });
 
@@ -36,20 +36,34 @@ export function PagarFaturaForm({ fatura }: { fatura: any }) {
         router.push('/dashboard/faturas');
         router.refresh();
       } else {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         toast.error(data.error || 'Erro ao registrar pagamento');
       }
-    } catch (err) {
-      toast.error('Erro ao conectar ao servidor');
+    } catch (err: any) {
+      toast.error('Erro ao conectar ao servidor: ' + (err?.message || 'Falha na conexão'));
     } finally {
       setLoading(false);
     }
   };
 
+  const formattedVencimento = (() => {
+    try {
+      if (!fatura.data_vencimento) return '-';
+      const d = new Date(fatura.data_vencimento);
+      if (isNaN(d.getTime())) return '-';
+      return format(new Date(d.getTime() + new Date().getTimezoneOffset() * 60000), 'dd/MM/yyyy');
+    } catch {
+      return '-';
+    }
+  })();
+
+  const apto = fatura.proprietario?.apartamento || '-';
+  const proprietarioNome = fatura.proprietario?.nome || 'Proprietário';
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Fatura {fatura.mes_ano} - Apto {fatura.proprietario.apartamento}</CardTitle>
+        <CardTitle>Fatura {fatura.mes_ano || ''} - Apto {apto} ({proprietarioNome})</CardTitle>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
@@ -57,13 +71,13 @@ export function PagarFaturaForm({ fatura }: { fatura: any }) {
             <div className="space-y-2">
               <Label>Valor Original</Label>
               <div className="text-lg font-bold">
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(fatura.valor_total)}
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(fatura.valor_total) || 0)}
               </div>
             </div>
             <div className="space-y-2">
               <Label>Vencimento</Label>
               <div className="text-lg">
-                {format(new Date(fatura.data_vencimento), 'dd/MM/yyyy')}
+                {formattedVencimento}
               </div>
             </div>
           </div>

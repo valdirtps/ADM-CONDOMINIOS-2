@@ -159,7 +159,8 @@ export async function PUT(
         if (!updatedProprietario) updatedProprietario = pUpdate;
       }
     } catch (prismaErr: any) {
-      console.warn("Prisma sync skipped/error:", prismaErr?.message);
+      // Prisma is secondary; Firestore is the primary database
+      console.log("[Info] Prisma sync bypassed (Firestore is active):", prismaErr?.message);
     }
 
     if (!updatedProprietario) {
@@ -212,7 +213,7 @@ export async function DELETE(
         where: { id, ...(condominioId ? { condominioId } : {}) },
       });
     } catch (prismaErr: any) {
-      console.warn("Prisma delete skipped:", prismaErr?.message);
+      console.log("[Info] Prisma delete bypassed (Firestore is active):", prismaErr?.message);
     }
 
     return NextResponse.json({ success: true });

@@ -10,7 +10,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
     // 1. Try Firebase Firestore
     try {
-      const { getDocument } = await import('@/lib/firestore-service');
+      const { getDocument, listDocuments } = await import('@/lib/firestore-service');
       fatura = await getDocument<any>('faturas', id);
       if (fatura) {
         if (fatura.proprietarioId && !fatura.proprietario) {
@@ -25,6 +25,20 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
             nome: 'Condomínio',
             sindicos: [],
           };
+        }
+        if (fatura.condominio && (!Array.isArray(fatura.condominio.sindicos) || fatura.condominio.sindicos.length === 0)) {
+          const allSindicos = await listDocuments<any>('sindicos');
+          const activeSindico = (allSindicos || []).find(
+            s => (!fatura.condominioId || s.condominioId === fatura.condominioId) && s.ativo
+          );
+          if (activeSindico) {
+            if (activeSindico.proprietarioId && !activeSindico.proprietario) {
+              activeSindico.proprietario = await getDocument<any>('proprietarios', activeSindico.proprietarioId);
+            }
+            fatura.condominio.sindicos = [activeSindico];
+          } else {
+            fatura.condominio.sindicos = [];
+          }
         }
       }
     } catch (fbErr: any) {
@@ -46,7 +60,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
           },
         });
       } catch (prismaErr: any) {
-        console.warn('Prisma lookup failed in faturas-pdf:', prismaErr?.message);
+        console.warn('Prisma lookup bypassed in faturas-pdf:', prismaErr?.message);
       }
     }
 
@@ -61,7 +75,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename="Fatura_${fatura.mes_ano}_Apto_${apto}.pdf"`,
+        'Content-Disposition': `inline; filename="Fatura_${fatura.mes_ano || 'mes'}_Apto_${apto}.pdf"`,
       },
     });
   } catch (error) {

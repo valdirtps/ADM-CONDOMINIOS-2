@@ -106,7 +106,7 @@ export async function getSession(req?: Request) {
           nome: defaultUser.nome || 'Administrador',
           email: defaultUser.email,
           role: defaultUser.role || 'ADMIN_SISTEMA',
-          condominioId: defaultUser.condominioId || null,
+          condominioId: defaultUser.condominioId || 'cmos2ue0m0000lb04w30rj205',
         }
       };
     }

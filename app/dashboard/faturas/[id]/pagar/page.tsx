@@ -17,12 +17,11 @@ export default async function PagarFaturaPage({ params }: { params: Promise<{ id
     const { getDocument } = await import('@/lib/firestore-service');
     fatura = await getDocument<any>('faturas', id);
     if (fatura && fatura.proprietarioId && !fatura.proprietario) {
-      fatura.proprietario = await getDocument<any>('proprietarios', fatura.proprietarioId) || {
-        nome: 'Proprietário',
-        apartamento: '-',
-      };
+      fatura.proprietario = await getDocument<any>('proprietarios', fatura.proprietarioId);
     }
-  } catch {}
+  } catch (err: any) {
+    console.warn('Firestore lookup warning in PagarFaturaPage:', err?.message);
+  }
 
   // 2. Fallback to Prisma
   if (!fatura) {
@@ -35,6 +34,13 @@ export default async function PagarFaturaPage({ params }: { params: Promise<{ id
   }
 
   if (!fatura) notFound();
+
+  if (!fatura.proprietario) {
+    fatura.proprietario = {
+      nome: 'Proprietário',
+      apartamento: '-',
+    };
+  }
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">

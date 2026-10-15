@@ -94,9 +94,8 @@ export async function POST(request: Request) {
           ativo: true,
         },
       });
-      if (!createdProprietario) createdProprietario = pCreate;
     } catch (prismaErr: any) {
-      console.warn('Prisma create skipped:', prismaErr?.message);
+      console.log('[Info] Prisma create bypassed (Firestore is active):', prismaErr?.message);
     }
 
     if (!createdProprietario) {

@@ -10,9 +10,53 @@ import { toast } from 'sonner';
 
 export function FaturaView({ fatura }: { fatura: any }) {
   const [isGenerating, setIsGenerating] = useState(false);
-  const detalhes = JSON.parse(fatura.detalhes);
-  const sindico = fatura.condominio.sindicos[0];
-  const nomeSindico = sindico?.proprietario ? `Apto ${sindico.proprietario.apartamento} - ${sindico.proprietario.nome}` : sindico?.empresa_nome || 'Não definido';
+
+  const detalhes = (() => {
+    if (!fatura?.detalhes) return { itens: [] };
+    if (typeof fatura.detalhes === 'object') return fatura.detalhes;
+    try {
+      return JSON.parse(fatura.detalhes);
+    } catch {
+      return { itens: [] };
+    }
+  })();
+
+  const sindicosList = Array.isArray(fatura?.condominio?.sindicos) ? fatura.condominio.sindicos : [];
+  const sindico = sindicosList && sindicosList.length > 0 ? sindicosList[0] : null;
+  const nomeSindico = sindico?.proprietario 
+    ? `Apto ${sindico.proprietario.apartamento || '-'} - ${sindico.proprietario.nome || ''}` 
+    : (sindico?.empresa_nome || sindico?.nome || 'Não definido');
+
+  const condominio = fatura?.condominio || {
+    nome: 'Condomínio',
+    endereco: '',
+    numero: 'S/N',
+    cidade: '',
+    uf: '',
+    cnpj: '',
+  };
+
+  const proprietario = fatura?.proprietario || {
+    nome: 'Proprietário',
+    apartamento: '-',
+  };
+
+  const itens = Array.isArray(detalhes?.itens) ? detalhes.itens : [];
+
+  const formatDateSafe = (dateInput: any) => {
+    if (!dateInput) return '-';
+    try {
+      const d = new Date(dateInput);
+      if (isNaN(d.getTime())) return '-';
+      return format(new Date(d.getTime() + new Date().getTimezoneOffset() * 60000), 'dd/MM/yyyy');
+    } catch {
+      return '-';
+    }
+  };
+
+  const formatCurrencySafe = (val: any) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(val) || 0);
+  };
 
   const handlePrintPDF = async () => {
     setIsGenerating(true);
@@ -55,7 +99,7 @@ export function FaturaView({ fatura }: { fatura: any }) {
       const xOffset = (pdfWidth - finalWidth) / 2;
       
       pdf.addImage(dataUrl, 'PNG', xOffset, margin, finalWidth, finalHeight);
-      pdf.save(`fatura-${fatura.mes_ano}-apto-${fatura.proprietario.apartamento}.pdf`);
+      pdf.save(`fatura-${fatura?.mes_ano || 'mes'}-apto-${proprietario?.apartamento || '-'}.pdf`);
       toast.success('PDF gerado com sucesso!');
     } catch (e) {
       console.error('Erro ao gerar PDF:', e);
@@ -68,7 +112,7 @@ export function FaturaView({ fatura }: { fatura: any }) {
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <div className="flex justify-between items-center print:hidden">
-        <h1 className="text-3xl font-bold tracking-tight">Fatura - {fatura.mes_ano}</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Fatura - {fatura?.mes_ano || ''}</h1>
         <Button onClick={handlePrintPDF} disabled={isGenerating}>
           <Printer className="mr-2 h-4 w-4" /> {isGenerating ? 'Gerando...' : 'Baixar PDF'}
         </Button>
@@ -79,14 +123,17 @@ export function FaturaView({ fatura }: { fatura: any }) {
           <CardHeader className="border-b-2 border-black pb-4">
             <div className="flex justify-between items-start">
               <div>
-                <CardTitle className="text-2xl uppercase">{fatura.condominio.nome}</CardTitle>
-                <p className="text-sm">{fatura.condominio.endereco}, {fatura.condominio.numero || 'S/N'}, {fatura.condominio.cidade} - {fatura.condominio.uf}</p>
-                <p className="text-sm">CNPJ: {fatura.condominio.cnpj}</p>
+                <CardTitle className="text-2xl uppercase">{condominio.nome || 'Condomínio'}</CardTitle>
+                <p className="text-sm">
+                  {condominio.endereco || ''}{condominio.numero ? `, ${condominio.numero}` : ''}
+                  {condominio.cidade ? `, ${condominio.cidade}` : ''}{condominio.uf ? ` - ${condominio.uf}` : ''}
+                </p>
+                {condominio.cnpj && <p className="text-sm">CNPJ: {condominio.cnpj}</p>}
               </div>
               <div className="text-right">
                 <p className="font-bold">RECIBO DE CONDOMÍNIO</p>
-                <p className="text-sm">Vencimento: {format(new Date(new Date(fatura.data_vencimento).getTime() + new Date().getTimezoneOffset() * 60000), 'dd/MM/yyyy')}</p>
-                <p className="text-sm">Emissão: {format(new Date(fatura.createdAt), 'dd/MM/yyyy')}</p>
+                <p className="text-sm">Vencimento: {formatDateSafe(fatura?.data_vencimento)}</p>
+                <p className="text-sm">Emissão: {formatDateSafe(fatura?.createdAt)}</p>
               </div>
             </div>
             <div className="mt-4 pt-4 border-t border-black">
@@ -97,11 +144,11 @@ export function FaturaView({ fatura }: { fatura: any }) {
             <div className="flex justify-between border-b border-gray-300 pb-4">
               <div>
                 <p className="text-sm text-black font-medium">Proprietário</p>
-                <p className="font-bold text-lg">{fatura.proprietario.nome}</p>
+                <p className="font-bold text-lg">{proprietario.nome || 'Proprietário'}</p>
               </div>
               <div className="text-right">
                 <p className="text-sm text-black font-medium">Apartamento</p>
-                <p className="font-bold text-lg">{fatura.proprietario.apartamento}</p>
+                <p className="font-bold text-lg">{proprietario.apartamento || '-'}</p>
               </div>
             </div>
 
@@ -115,53 +162,53 @@ export function FaturaView({ fatura }: { fatura: any }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {detalhes.itens.map((item: any, i: number) => {
-                    let desc = item.descricao;
+                  {itens.map((item: any, i: number) => {
+                    let desc = item.descricao || '';
                     if (desc.includes('Multa/Juros por Atraso') || desc.includes('Multa por Atraso')) {
                       desc = desc.replace('Valor Exclusivo: ', '');
                     } else if (desc.startsWith('Valor Exclusivo: ')) {
                       desc = desc.replace('Valor Exclusivo: ', 'Valor Exclusivo - ');
                     }
                     return (
-                    <TableRow key={i}>
-                      <TableCell>{desc}</TableCell>
-                      <TableCell className="text-right">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.valor)}</TableCell>
-                    </TableRow>
+                      <TableRow key={i}>
+                        <TableCell>{desc}</TableCell>
+                        <TableCell className="text-right">{formatCurrencySafe(item.valor)}</TableCell>
+                      </TableRow>
                     );
                   })}
                   <TableRow>
                     <TableCell className="font-bold text-lg">Total Fatura</TableCell>
                     <TableCell className="text-right font-bold text-lg">
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(fatura.valor_total)}
+                      {formatCurrencySafe(fatura?.valor_total)}
                     </TableCell>
                   </TableRow>
-                  {(fatura.status === 'PAGO' && (fatura.multa > 0 || fatura.juros > 0)) && (
+                  {(fatura?.status === 'PAGO' && ((Number(fatura?.multa) || 0) > 0 || (Number(fatura?.juros) || 0) > 0)) && (
                     <>
                       <TableRow>
-                        <TableCell>Acréscimos (Multa/Juros) - Pgto em {fatura.data_pagamento ? format(new Date(new Date(fatura.data_pagamento).getTime() + new Date().getTimezoneOffset() * 60000), 'dd/MM/yyyy') : '-'}</TableCell>
-                        <TableCell className="text-right">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(fatura.multa + fatura.juros)}</TableCell>
+                        <TableCell>Acréscimos (Multa/Juros) - Pgto em {formatDateSafe(fatura?.data_pagamento)}</TableCell>
+                        <TableCell className="text-right">{formatCurrencySafe((Number(fatura?.multa) || 0) + (Number(fatura?.juros) || 0))}</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-bold text-lg text-red-700">Total Pago</TableCell>
                         <TableCell className="text-right font-bold text-lg text-red-700">
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(fatura.valor_pago || (fatura.valor_total + fatura.multa + fatura.juros))}
+                          {formatCurrencySafe(fatura?.valor_pago || ((Number(fatura?.valor_total) || 0) + (Number(fatura?.multa) || 0) + (Number(fatura?.juros) || 0)))}
                         </TableCell>
                       </TableRow>
                     </>
                   )}
-                  {fatura.status === 'PAGO' && (fatura.multa === 0 && fatura.juros === 0) && (
+                  {fatura?.status === 'PAGO' && ((Number(fatura?.multa) || 0) === 0 && (Number(fatura?.juros) || 0) === 0) && (
                     <TableRow>
-                        <TableCell className="font-bold text-green-700">Valor Pago (em {fatura.data_pagamento ? format(new Date(new Date(fatura.data_pagamento).getTime() + new Date().getTimezoneOffset() * 60000), 'dd/MM/yyyy') : '-'})</TableCell>
-                        <TableCell className="text-right font-bold text-green-700">
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(fatura.valor_pago || fatura.valor_total)}
-                        </TableCell>
+                      <TableCell className="font-bold text-green-700">Valor Pago (em {formatDateSafe(fatura?.data_pagamento)})</TableCell>
+                      <TableCell className="text-right font-bold text-green-700">
+                        {formatCurrencySafe(fatura?.valor_pago || fatura?.valor_total)}
+                      </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
             </div>
 
-            {detalhes.observacaoGeral && (
+            {detalhes?.observacaoGeral && (
               <div className="mt-8 border p-4 rounded-lg bg-orange-50 border-orange-200">
                 <h3 className="font-bold text-sm text-orange-800 mb-2 uppercase tracking-wider flex items-center">
                   Observação
@@ -172,20 +219,20 @@ export function FaturaView({ fatura }: { fatura: any }) {
               </div>
             )}
 
-            {detalhes.despesasAnteriores && detalhes.despesasAnteriores.itens.length > 0 && (
+            {detalhes?.despesasAnteriores && Array.isArray(detalhes.despesasAnteriores.itens) && detalhes.despesasAnteriores.itens.length > 0 && (
               <div className="mt-8 border p-4 rounded-lg bg-gray-50/50">
                 <h3 className="font-bold text-sm text-black mb-4 border-b pb-2 uppercase text-center tracking-wider">
-                  Despesas do Mês Anterior ({detalhes.despesasAnteriores.mes_ano})
+                  Despesas do Mês Anterior ({detalhes.despesasAnteriores.mes_ano || ''})
                 </h3>
                 <div className="space-y-2">
                   {detalhes.despesasAnteriores.itens.map((d: any, idx: number) => (
                     <div key={idx} className="flex justify-between text-sm">
                       <span className="text-black font-medium">
-                        {d.data_pagamento ? `[${format(new Date(new Date(d.data_pagamento).getTime() + new Date().getTimezoneOffset() * 60000), 'dd/MM/yyyy')}] ` : ''}
+                        {d.data_pagamento ? `[${formatDateSafe(d.data_pagamento)}] ` : ''}
                         {d.descricao}
                       </span>
                       <span className="font-bold text-black">
-                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(d.valor)}
+                        {formatCurrencySafe(d.valor)}
                       </span>
                     </div>
                   ))}
@@ -193,7 +240,7 @@ export function FaturaView({ fatura }: { fatura: any }) {
                 <div className="mt-4 pt-3 flex justify-between border-t border-gray-200">
                   <span className="font-bold text-black text-sm">Total de Despesas</span>
                   <span className="font-bold text-black text-sm">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(detalhes.despesasAnteriores.total)}
+                    {formatCurrencySafe(detalhes.despesasAnteriores.total)}
                   </span>
                 </div>
                 <p className="text-xs text-black font-medium mt-4 text-center">
@@ -210,18 +257,18 @@ export function FaturaView({ fatura }: { fatura: any }) {
 
             <div className="border-2 border-black p-4">
               <div className="flex justify-between items-center mb-4">
-                <h4 className="font-bold uppercase">{fatura.condominio.nome}</h4>
+                <h4 className="font-bold uppercase">{condominio.nome || 'Condomínio'}</h4>
                 <p className="font-bold">COMPROVANTE DE PAGAMENTO</p>
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p><strong>Apto:</strong> {fatura.proprietario.apartamento}</p>
-                  <p><strong>Proprietário:</strong> {fatura.proprietario.nome}</p>
-                  <p><strong>Referência:</strong> {fatura.mes_ano}</p>
+                  <p><strong>Apto:</strong> {proprietario.apartamento || '-'}</p>
+                  <p><strong>Proprietário:</strong> {proprietario.nome || 'Proprietário'}</p>
+                  <p><strong>Referência:</strong> {fatura?.mes_ano || ''}</p>
                 </div>
                 <div className="text-right">
-                  <p><strong>Vencimento:</strong> {format(new Date(new Date(fatura.data_vencimento).getTime() + new Date().getTimezoneOffset() * 60000), 'dd/MM/yyyy')}</p>
-                  <p><strong>Valor:</strong> {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(fatura.valor_total)}</p>
+                  <p><strong>Vencimento:</strong> {formatDateSafe(fatura?.data_vencimento)}</p>
+                  <p><strong>Valor:</strong> {formatCurrencySafe(fatura?.valor_total)}</p>
                 </div>
               </div>
               <div className="mt-6 flex justify-between items-end">
