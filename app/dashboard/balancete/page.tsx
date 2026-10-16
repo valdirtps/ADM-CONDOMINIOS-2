@@ -113,13 +113,14 @@ export default async function BalancetePage({ searchParams }: { searchParams: Pr
 
   if (!condominio) return <div>Condomínio não encontrado.</div>;
 
-  const activeSindico = condominio.sindicos.find(s => {
-    if (!s.data_fim) return true;
+  const sindicosList: any[] = Array.isArray(condominio.sindicos) ? condominio.sindicos : [];
+  const activeSindico = sindicosList.find((s: any) => {
+    if (!s?.data_fim) return true;
     const today = new Date();
     today.setHours(0,0,0,0);
     const dataFim = new Date(s.data_fim);
     return dataFim >= today;
-  }) || condominio.sindicos[0];
+  }) || (sindicosList.length > 0 ? sindicosList[0] : null);
 
   const safeDate = (dateVal: any): Date => {
     if (!dateVal) return new Date();

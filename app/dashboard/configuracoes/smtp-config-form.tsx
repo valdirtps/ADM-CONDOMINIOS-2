@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -52,37 +52,36 @@ export function SmtpConfigForm({ userEmail }: { userEmail?: string }) {
   const [showHelp, setShowHelp] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
-    const loadConfig = async () => {
-      try {
-        setLoading(true);
-        const res = await fetch('/api/configuracoes/smtp', { credentials: 'include' });
-        if (res.ok && isMounted) {
-          const data = await res.json();
-          setFormData({
-            isConfigured: Boolean(data.isConfigured),
-            host: data.host || '',
-            port: data.port || 587,
-            secure: Boolean(data.secure),
-            user: data.user || '',
-            pass: data.pass || '',
-            from: data.from || '',
-            updatedAt: data.updatedAt,
-          });
-          if (data.user) {
-            setTestEmail(prev => prev || data.user);
-          }
+  const loadConfig = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/configuracoes/smtp', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setFormData({
+          isConfigured: Boolean(data.isConfigured),
+          host: data.host || '',
+          port: data.port || 587,
+          secure: Boolean(data.secure),
+          user: data.user || '',
+          pass: data.pass || '',
+          from: data.from || '',
+          updatedAt: data.updatedAt,
+        });
+        if (data.user) {
+          setTestEmail(prev => prev || data.user);
         }
-      } catch (e) {
-        if (isMounted) toast.error('Erro ao carregar configurações de e-mail.');
-      } finally {
-        if (isMounted) setLoading(false);
       }
-    };
-    loadConfig();
-    return () => { isMounted = false; };
+    } catch (e) {
+      toast.error('Erro ao carregar configurações de e-mail.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadConfig();
+  }, [loadConfig]);
 
   const applyPreset = (preset: 'gmail' | 'outlook' | 'yahoo' | 'zoho') => {
     if (preset === 'gmail') {
@@ -145,7 +144,7 @@ export function SmtpConfigForm({ userEmail }: { userEmail?: string }) {
       const data = await res.json();
       if (res.ok) {
         toast.success(data.message || 'Configurações de SMTP salvas com sucesso!');
-        await fetchConfig();
+        await loadConfig();
       } else {
         toast.error(data.error || 'Erro ao salvar configurações.');
       }
